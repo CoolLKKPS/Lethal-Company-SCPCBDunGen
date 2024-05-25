@@ -15,6 +15,10 @@ using LethalLevelLoader;
 using Newtonsoft.Json;
 using System;
 using System.Linq;
+using BepInEx.Bootstrap;
+using System.Net.NetworkInformation;
+using DunGen;
+using UnityEngine.ProBuilder;
 
 namespace SCPCBDunGen
 {
@@ -40,6 +44,7 @@ namespace SCPCBDunGen
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
     [BepInDependency("BMX.LobbyCompatibility", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency(LethalLevelLoader.Plugin.ModGUID, BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("Piggy.PiggyVarietyMod", BepInDependency.DependencyFlags.SoftDependency)]
     [LobbyCompatibility(CompatibilityLevel.Everyone, VersionStrictness.Patch)]
     public class SCPCBDunGen : BaseUnityPlugin
     {
@@ -47,12 +52,6 @@ namespace SCPCBDunGen
         internal new static ManualLogSource Logger { get; private set; } = null!;
 
         public static AssetBundle? SCPCBAssets = null;
-
-        // Configs
-        private ConfigEntry<int> configSCPRarity;
-        private ConfigEntry<string> configMoons;
-        private ConfigEntry<int> configLengthOverride;
-        private ConfigEntry<bool> configDefault914;
 
         // SCP 914 conversion dictionary (using KeyedCollection for easier json conversion)
         public SCP914ConversionSet SCP914Conversions = new SCP914ConversionSet();
@@ -74,7 +73,7 @@ namespace SCPCBDunGen
                 return;
             }
 
-            LethalLevelLoader.ExtendedDungeonFlow SCPExtendedFlow = SCPCBAssets.LoadAsset<LethalLevelLoader.ExtendedDungeonFlow>("assets/Mods/SCP/data/SCPCBDunGenExtFlow.asset");
+            ExtendedDungeonFlow SCPExtendedFlow = SCPCBAssets.LoadAsset<ExtendedDungeonFlow>("assets/Mods/SCP/data/SCPCBDunGenExtFlow.asset");
             if (SCPExtendedFlow == null)
             {
                 Logger.LogError("Failed to load SCP:CB Extended Dungeon Flow.");
@@ -82,7 +81,13 @@ namespace SCPCBDunGen
             }
 
             // Config setup
-            configDefault914 = Config.Bind("General", "Default914Recipes", true, new ConfigDescription("If false, any custom 914 Json files named \"default.json\" will be ignored (i.e. the default 914 config will not be loaded).\nSome custom 914 implementations may want to fully override the default settings, in which case this can be set to false."));
+            ConfigEntry<bool> configDefault914 = Config.Bind("General", "Default914Recipes", true, new ConfigDescription("If false, any custom 914 Json files named \"default.json\" will be ignored (i.e. the default 914 config will not be loaded).\nSome custom 914 implementations may want to fully override the default settings, in which case this can be set to false."));
+            ConfigEntry<bool> configPVMCompat = Config.Bind("Mod Compatibility", "PiggysVarietyMod", true, new ConfigDescription("If Piggys Variety Mod is present and this setting is enabled, tesla gates can spawn in the SCP Foundation.\nWARNING: Ensure this value matches across all clients or desync will occur."));
+
+            // PVM compat check
+            if (configPVMCompat.Value && Chainloader.PluginInfos.ContainsKey("Piggy.PiggyVarietyMod")) {
+                CompatPVM(SCPExtendedFlow); // If this isn't in a function and piggys mod isn't present it breaks things, probably JIT compiler trying to compile instructions that reference Piggys mod
+            }
 
             PatchedContent.RegisterExtendedDungeonFlow(SCPExtendedFlow);
 
@@ -120,6 +125,18 @@ namespace SCPCBDunGen
             Logger.LogInfo($"SCP:CB DunGen for Lethal Company [Version {MyPluginInfo.PLUGIN_VERSION}] successfully loaded.");
 
             Logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID} v{MyPluginInfo.PLUGIN_VERSION} has loaded!");
+        }
+
+        private static void CompatPVM(ExtendedDungeonFlow SCPExtendedFlow) {
+            // Add the tesla gate room to the list of potential LC rooms
+            Logger.LogInfo("PiggysVarietyMod detected and compatibility layer enabled! Adding tesla gate room.");
+
+            GameObject tile = SCPCBAssets.LoadAsset<GameObject>("assets/Mods/SCP/prefabs/Rooms/LC/SCPHallTesla.prefab");
+            Transform TeslaSpawnTransform = tile.transform.Find("TeslaSpawn");
+            SpawnSyncedObject SyncedSpawn = TeslaSpawnTransform.gameObject.AddComponent<SpawnSyncedObject>();
+            SyncedSpawn.spawnPrefab = PiggyVarietyMod.Plugin.teslaGatePrefab;
+
+            SCPExtendedFlow.DungeonFlow.Lines.First().DungeonArchetypes.First().TileSets.First().AddTile(tile, 1, 1);
         }
 
         // Thanks to Lordfirespeed for this json file path getter function

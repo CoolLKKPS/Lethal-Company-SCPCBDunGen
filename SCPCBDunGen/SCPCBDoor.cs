@@ -103,6 +103,7 @@ namespace SCPCBDunGen
             bDoorOpen = true;
             ButtonA.interactable = false;
             ButtonB.interactable = false;
+            navObstacle.enabled = false;
             doorSFXSource.PlayOneShot(doorAudioClipFast);
             doors.SetTrigger("openfast");
         }
@@ -135,6 +136,7 @@ namespace SCPCBDunGen
             bDoorOpen = _bDoorOpen;
             ButtonA.interactable = false;
             ButtonB.interactable = false;
+            navObstacle.enabled = !_bDoorOpen;
             doorSFXSource.PlayOneShot(doorAudioClips[UnityEngine.Random.Range(0, doorAudioClips.Count)]);
             doors.SetTrigger(bDoorOpen ? "open" : "close");
         }

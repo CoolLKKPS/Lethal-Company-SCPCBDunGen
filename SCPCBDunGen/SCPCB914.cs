@@ -12,6 +12,7 @@ using System.Collections;
 using System.Linq;
 using SCPCBDunGen;
 using System.Reflection;
+using UnityEngine.UIElements.Collections;
 
 namespace SCPCBDunGen
 {
@@ -83,6 +84,33 @@ namespace SCPCBDunGen
             new Dictionary<Item, List<Item>>(), // FINE
             new Dictionary<Item, List<Item>>()  // VERYFINE
         ];
+        
+        private Dictionary<EnemyType, List<EnemyType>>[] arEnemyMappings =
+        [
+            new Dictionary<EnemyType, List<EnemyType>>(), // ROUGH
+            new Dictionary<EnemyType, List<EnemyType>>(), // COARSE
+            new Dictionary<EnemyType, List<EnemyType>>(), // ONETOONE
+            new Dictionary<EnemyType, List<EnemyType>>(), // FINE
+            new Dictionary<EnemyType, List<EnemyType>>()  // VERYFINE
+        ];
+
+        private Dictionary<Item, List<EnemyType>>[] arItemEnemyMappings =
+        [
+            new Dictionary<Item, List<EnemyType>>(), // ROUGH
+            new Dictionary<Item, List<EnemyType>>(), // COARSE
+            new Dictionary<Item, List<EnemyType>>(), // ONETOONE
+            new Dictionary<Item, List<EnemyType>>(), // FINE
+            new Dictionary<Item, List<EnemyType>>()  // VERYFINE
+        ];
+
+        private Dictionary<EnemyType, List<Item>>[] arEnemyItemMappings =
+        [
+            new Dictionary<EnemyType, List<Item>>(), // ROUGH
+            new Dictionary<EnemyType, List<Item>>(), // COARSE
+            new Dictionary<EnemyType, List<Item>>(), // ONETOONE
+            new Dictionary<EnemyType, List<Item>>(), // FINE
+            new Dictionary<EnemyType, List<Item>>()  // VERYFINE
+        ];
 
         private int iCurrentState = 0;
         private bool bActive = false; // Server parameter to reject multiple activation at once
@@ -102,13 +130,53 @@ namespace SCPCBDunGen
             }
         }
 
-        private Dictionary<Item, List<Item>> GetItemMapping() {
-            return arItemMappings[iCurrentState];
+        public void AddConversion(SCP914Setting setting, EnemyType enemyInput, List<EnemyType> lEnemyOutputs)
+        {
+            int iSetting = (int)setting;
+            Dictionary<EnemyType, List<EnemyType>> dItemMapping = arEnemyMappings[iSetting];
+            // If dictionary item already exists, concatenate the array
+            if (dItemMapping.TryGetValue(enemyInput, out List<EnemyType> lExisting))
+            {
+                lExisting.AddRange(lEnemyOutputs);
+            } else
+            {
+                arEnemyMappings[iSetting].Add(enemyInput, lEnemyOutputs);
+            }
         }
+
+        public void AddConversion(SCP914Setting setting, Item itemInput, List<EnemyType> lEnemyOutputs) {
+            int iSetting = (int)setting;
+            Dictionary<Item, List<EnemyType>> dItemMapping = arItemEnemyMappings[iSetting];
+            // If dictionary item already exists, concatenate the array
+            if (dItemMapping.TryGetValue(itemInput, out List<EnemyType> lExisting)) {
+                lExisting.AddRange(lEnemyOutputs);
+            } else {
+                arItemEnemyMappings[iSetting].Add(itemInput, lEnemyOutputs);
+            }
+        }
+
+        public void AddConversion(SCP914Setting setting, EnemyType enemyInput, List<Item> lItemOutputs) {
+            int iSetting = (int)setting;
+            Dictionary<EnemyType, List<Item>> dItemMapping = arEnemyItemMappings[iSetting];
+            // If dictionary item already exists, concatenate the array
+            if (dItemMapping.TryGetValue(enemyInput, out List<Item> lExisting)) {
+                lExisting.AddRange(lItemOutputs);
+            } else {
+                arEnemyItemMappings[iSetting].Add(enemyInput, lItemOutputs);
+            }
+        }
+
+        private Dictionary<Item, List<Item>> GetItemMapping() { return arItemMappings[iCurrentState]; }
+
+        private Dictionary<EnemyType, List<EnemyType>> GetEnemyMapping() { return arEnemyMappings[iCurrentState]; }
+
+        private Dictionary<Item, List<EnemyType>> GetItemEnemyMapping() { return arItemEnemyMappings[iCurrentState]; }
+
+        private Dictionary<EnemyType, List<Item>> GetEnemyItemMapping() { return arEnemyItemMappings[iCurrentState]; }
 
         private Vector3 GetRandomNavMeshPositionInCollider(Collider collider) {
             Vector3 vPosition = collider.bounds.center;
-            // Since the room can be rotated, and extents don't take into account rotation, we instead make a smallest cube fit for the items to spawn in
+            // Since the room can be rotated, and extents don't take into account rotation, we instead make a smallest cube fit for the navmesh location
             float fExtentsMin = Math.Min(collider.bounds.extents.x, collider.bounds.extents.z);
             vPosition.x += UnityEngine.Random.Range(-fExtentsMin, fExtentsMin);
             vPosition.z += UnityEngine.Random.Range(-fExtentsMin, fExtentsMin);
@@ -116,6 +184,15 @@ namespace SCPCBDunGen
             NavMeshHit navHit;
             if (NavMesh.SamplePosition(vPosition, out navHit, 5, -1)) return navHit.position;
             else return vPosition; // Failsafe in case navmesh search fails
+        }
+
+        private Vector3 GetRandomPositionInCollider(Collider collider) {
+            Vector3 vPosition = collider.bounds.center;
+            // Since the room can be rotated, and extents don't take into account rotation, we instead make a smallest cube fit for the items to spawn in
+            float fExtentsMin = Math.Min(collider.bounds.extents.x, collider.bounds.extents.z);
+            vPosition.x += UnityEngine.Random.Range(-fExtentsMin, fExtentsMin);
+            vPosition.z += UnityEngine.Random.Range(-fExtentsMin, fExtentsMin);
+            return vPosition;
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -171,6 +248,7 @@ namespace SCPCBDunGen
             }
         }
 
+        // The main meat function for converting everything (server side)
         IEnumerator ConversionProcess() {
             RefineAudioSrc.Play();
             yield return new WaitForSeconds(7); // Initial wait before collecting item data so doors can close
@@ -196,13 +274,12 @@ namespace SCPCBDunGen
             List<int> lScrapValues = new List<int>();
             bool bChargeBatteries = (iCurrentState > 1);
 
-            Dictionary<Item, List<Item>> dcCurrentMapping = GetItemMapping();
             SCPCBDunGen.Logger.LogInfo($"Contained item count: {InputStore.lContainedObjects.Count}");
             foreach (GameObject gameObject in InputStore.lContainedObjects) {
                 GrabbableObject grabbable = gameObject.GetComponent<GrabbableObject>();
                 // If grabbable item, convert it
                 if (grabbable != null) {
-                    ConvertItem(lNetworkObjectReferences, lScrapValues, dcCurrentMapping, grabbable);
+                    ConvertItem(lNetworkObjectReferences, lScrapValues, grabbable);
                     continue;
                 }
                 // Special case for players
@@ -211,7 +288,12 @@ namespace SCPCBDunGen
                     ConvertPlayer(playerController);
                     continue;
                 }
-                // TODO enemy conversions
+                // If enemy, convert it
+                EnemyAI enemy = gameObject.GetComponentInParent<EnemyAI>();
+                if (enemy != null) {
+                    ConvertEnemy(lNetworkObjectReferences, lScrapValues, enemy);
+                    continue;
+                }
             }
             SCPCBDunGen.Logger.LogInfo("Finished spawning scrap, syncing with clients");
             SpawnItemsClientRpc(lNetworkObjectReferences.ToArray(), lScrapValues.ToArray(), bChargeBatteries);
@@ -221,21 +303,15 @@ namespace SCPCBDunGen
             bActive = false;
         }
 
-        // ** Convert Items
-        private void ConvertItem(List<NetworkObjectReference> lNetworkObjectReferences, List<int> lScrapValues, Dictionary<Item, List<Item>> dcCurrentMapping, GrabbableObject grabbable) {
-            if (grabbable.isHeld) return; // Best not disturb items in players' inventories, TODO implement conversion of held items
-            SCPCBDunGen.Logger.LogInfo($"Found grabbable item {grabbable.itemProperties.name}");
-            Vector3 vPosition = GetRandomNavMeshPositionInCollider(colliderOutput);
-            List<Item> lItemOutputs;
-
-            GameObject gameObjectCreated = null;
-            NetworkObject networkObject = null;
-            GrabbableObject grabbableObject = null;
-            if (dcCurrentMapping.TryGetValue(grabbable.itemProperties, out lItemOutputs)) {
+        // ** Convert Items functions
+        private void ConvertItemToItem(List<NetworkObjectReference> lNetworkObjectReferences, List<int> lScrapValues, GrabbableObject grabbable) {
+            Vector3 vPosition = GetRandomPositionInCollider(colliderOutput);
+            GameObject? gameObjectCreated = null;
+            NetworkObject? networkObject = null;
+            GrabbableObject? grabbableObject = null;
+            if (GetItemMapping().TryGetValue(grabbable.itemProperties, out List<Item> lItemOutputs)) {
                 SCPCBDunGen.Logger.LogInfo("Mapping found");
-                Item itemOutput = (lItemOutputs == null) ? null : lItemOutputs[roundManager.AnomalyRandom.Next(lItemOutputs.Count)];
-                // An output may just be null, no matter what we destroy the input object
-                Destroy(grabbable.gameObject);
+                Item? itemOutput = lItemOutputs[roundManager.AnomalyRandom.Next(lItemOutputs.Count)];
                 if (itemOutput != null) {
                     SCPCBDunGen.Logger.LogInfo("Conversion found");
                     gameObjectCreated = Instantiate(itemOutput.spawnPrefab, vPosition, Quaternion.identity, ScrapTransform);
@@ -243,10 +319,9 @@ namespace SCPCBDunGen
                     grabbableObject = gameObjectCreated.GetComponent<GrabbableObject>();
                 }
             } else {
-                SCPCBDunGen.Logger.LogInfo("No conversion, making new item with new scrap value");
+                SCPCBDunGen.Logger.LogInfo("No conversion, making new item copy with new scrap value");
                 // No conversion mapping found, just create a new item copy
                 gameObjectCreated = Instantiate(grabbable.itemProperties.spawnPrefab, vPosition, Quaternion.identity, ScrapTransform);
-                Destroy(grabbable.gameObject);
                 networkObject = gameObjectCreated.GetComponent<NetworkObject>();
                 grabbableObject = gameObjectCreated.GetComponent<GrabbableObject>();
             }
@@ -273,6 +348,29 @@ namespace SCPCBDunGen
             }
             networkObject.Spawn(destroyWithScene: true);
             lNetworkObjectReferences.Add(networkObject);
+        }
+
+        private void ConvertItemToEnemy(GrabbableObject grabbable, EnemyType enemyType) {
+            // Position to put the enemy
+            Vector3 NavPosition = GetRandomNavMeshPositionInCollider(colliderOutput);
+            roundManager.SpawnEnemyGameObject(NavPosition, 0, -1, enemyType);
+        }
+
+        private void ConvertItem(List<NetworkObjectReference> lNetworkObjectReferences, List<int> lScrapValues, GrabbableObject grabbable) {
+            if (grabbable.isHeld) return; // Best not disturb items in players' inventories, TODO implement conversion of held items
+            SCPCBDunGen.Logger.LogInfo($"Found grabbable item {grabbable.itemProperties.name}");
+            Dictionary<Item, List<Item>> dcItemMappings = GetItemMapping();
+            Dictionary<Item, List<EnemyType>> dcItemEnemyMappings = GetItemEnemyMapping();
+
+            if (dcItemEnemyMappings.TryGetValue(grabbable.itemProperties, out List<EnemyType> lEnemyTypes)) {
+                // Do the coinflip before trying to get the value as it's faster than the dictionary get
+                if ((roundManager.AnomalyRandom.Next(2) == 0) && dcItemMappings.ContainsKey(grabbable.itemProperties)) {
+                    ConvertItemToItem(lNetworkObjectReferences, lScrapValues, grabbable);
+                } else ConvertItemToEnemy(grabbable, lEnemyTypes[roundManager.AnomalyRandom.Next(lEnemyTypes.Count)]);
+            } else ConvertItemToItem(lNetworkObjectReferences, lScrapValues, grabbable); // This function handles no conversions being present
+
+            // Regardless of outcome, destroy the item
+            Destroy(grabbable.gameObject);
         }
 
         // ** Convert Players (Teleport)
@@ -495,6 +593,111 @@ namespace SCPCBDunGen
                     SCPCBDunGen.Logger.LogError("Invalid SCP 914 setting when attempting to convert player.");
                     break;
             }
+        }
+
+        // ** Enemy conversion functions
+        [ClientRpc]
+        private void TeleportEnemyClientRpc(NetworkBehaviourReference netBehaviourRefEnemy, Vector3 vPosition) {
+            NetworkBehaviour netBehaviourEnemy = null;
+            netBehaviourRefEnemy.TryGet(out netBehaviourEnemy);
+            if (netBehaviourEnemy == null) {
+                SCPCBDunGen.Logger.LogError("Failed to get enemy AI.");
+                return;
+            }
+            EnemyAI enemyAI = (EnemyAI)netBehaviourEnemy;
+            enemyAI.serverPosition = vPosition;
+        }
+
+        private void MoveEnemy(EnemyAI enemy, Vector3 NavPosition) {
+            SCPCBDunGen.Logger.LogInfo($"No conversions for enemy: {enemy.enemyType.enemyName}. Teleporting to {NavPosition}");
+            NetworkBehaviourReference netBehaviourEnemy = enemy;
+            TeleportEnemyClientRpc(netBehaviourEnemy, NavPosition);
+            enemy.agent.Warp(NavPosition);
+            enemy.SyncPositionToClients();
+            // If this was on rough, kill them (if possible)
+            if (iCurrentState == 0) enemy.KillEnemyOnOwnerClient();
+        }
+
+        private void ConvertEnemyToEnemy(EnemyAI enemy) {
+            Dictionary<EnemyType, List<EnemyType>> dcCurrentMapping = GetEnemyMapping();
+            // Position to put the enemy
+            Vector3 NavPosition = GetRandomNavMeshPositionInCollider(colliderOutput);
+            do { // While false for break-out
+                if (!dcCurrentMapping.TryGetValue(enemy.enemyType, out List<EnemyType> enemyOutputTypes)) break;
+                if (enemyOutputTypes.Count == 0) break;
+                // We have an enemy we can convert this into
+                EnemyType enemyTargetType = enemyOutputTypes[roundManager.AnomalyRandom.Next(enemyOutputTypes.Count)];
+                roundManager.SpawnEnemyGameObject(NavPosition, 0, -1, enemyTargetType);
+                Destroy(enemy.gameObject);
+            } while (false);
+            // No conversion found, teleport enemy
+            MoveEnemy(enemy, NavPosition);
+        }
+
+        private void ConvertEnemyToItem(List<NetworkObjectReference> lNetworkObjectReferences, List<int> lScrapValues, EnemyAI enemy) {
+            Vector3 vPosition = GetRandomPositionInCollider(colliderOutput);
+
+            GameObject? gameObjectCreated = null;
+            NetworkObject? networkObject = null;
+            GrabbableObject? grabbableObject = null;
+            if (GetEnemyItemMapping().TryGetValue(enemy.enemyType, out List<Item> lItemOutputs)) {
+                SCPCBDunGen.Logger.LogInfo("Mapping found");
+                Item? itemOutput = lItemOutputs[roundManager.AnomalyRandom.Next(lItemOutputs.Count)];
+                Destroy(enemy.gameObject);
+                if (itemOutput != null) {
+                    SCPCBDunGen.Logger.LogInfo("Conversion found");
+                    gameObjectCreated = Instantiate(itemOutput.spawnPrefab, vPosition, Quaternion.identity, ScrapTransform);
+                    networkObject = gameObjectCreated.GetComponent<NetworkObject>();
+                    grabbableObject = gameObjectCreated.GetComponent<GrabbableObject>();
+                }
+            } else {
+                SCPCBDunGen.Logger.LogInfo("No conversion, teleporting enemy");
+                // Position to put the enemy
+                Vector3 NavPosition = GetRandomNavMeshPositionInCollider(colliderOutput);
+                MoveEnemy(enemy, NavPosition);
+            }
+            SCPCBDunGen.Logger.LogInfo("Preprocessing done");
+            // If the grabbable object is null, return here and don't spawn an output
+            if (grabbableObject == null) {
+                SCPCBDunGen.Logger.LogInfo("Conversion was null, item is intended to be destroyed in process.");
+                return;
+            }
+            Item itemCreated = grabbableObject.itemProperties;
+
+            // Post processing for items created
+            if (itemCreated.isScrap) {
+                SCPCBDunGen.Logger.LogInfo("Item is scrap or null, generating a copy with new value");
+                GrabbableObject grabbableCreated = gameObjectCreated.GetComponent<GrabbableObject>();
+                // Generate scrap value
+                int iScrapValue = (int)(roundManager.AnomalyRandom.Next(itemCreated.minValue, itemCreated.maxValue) * roundManager.scrapValueMultiplier);
+                grabbableCreated.SetScrapValue(iScrapValue);
+                SCPCBDunGen.Logger.LogInfo($"new scrap value: {iScrapValue}");
+                lScrapValues.Add(iScrapValue);
+            } else {
+                SCPCBDunGen.Logger.LogInfo("Item is not scrap, adding empty scrap value");
+                lScrapValues.Add(0);
+            }
+            networkObject.Spawn(destroyWithScene: true);
+            lNetworkObjectReferences.Add(networkObject);
+        }
+
+        private void ConvertEnemy(List<NetworkObjectReference> lNetworkObjectReferences, List<int> lScrapValues, EnemyAI enemy) {
+            Dictionary<EnemyType, List<Item>> dcEnemyItemMappings = GetEnemyItemMapping();
+            Dictionary<EnemyType, List<EnemyType>> dcEnemyMappings = GetEnemyMapping();
+
+            if (GetEnemyMapping().TryGetValue(enemy.enemyType, out List<EnemyType> lEnemyMappings)) {
+                if ((roundManager.AnomalyRandom.Next(2) == 0) && GetEnemyItemMapping().ContainsKey(enemy.enemyType)) ConvertEnemyToItem(lNetworkObjectReferences, lScrapValues, enemy);
+                else ConvertEnemyToEnemy(enemy);
+            } else if (GetEnemyItemMapping().ContainsKey(enemy.enemyType)) {
+                ConvertEnemyToItem(lNetworkObjectReferences, lScrapValues, enemy);
+            } else {
+                // No mapping, teleport enemy to exit
+                Vector3 NavPosition = GetRandomNavMeshPositionInCollider(colliderOutput);
+                MoveEnemy(enemy, NavPosition);
+            }
+
+            // Finally destroy the enemy
+            Destroy(enemy.gameObject);
         }
     }
 }
