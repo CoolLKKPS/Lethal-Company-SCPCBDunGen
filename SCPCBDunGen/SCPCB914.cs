@@ -349,7 +349,7 @@ namespace SCPCBDunGen
             networkObject.Spawn(destroyWithScene: true);
             lNetworkObjectReferences.Add(networkObject);
         }
-
+        
         private void ConvertItemToEnemy(GrabbableObject grabbable, EnemyType enemyType) {
             // Position to put the enemy
             Vector3 NavPosition = GetRandomNavMeshPositionInCollider(colliderOutput);
@@ -372,7 +372,7 @@ namespace SCPCBDunGen
             // Regardless of outcome, destroy the item
             Destroy(grabbable.gameObject);
         }
-
+        
         // ** Convert Players (Teleport)
         [ClientRpc]
         private void ConvertPlayerTeleportClientRpc(NetworkBehaviourReference netBehaviourRefPlayer, Vector3 vPosition) {

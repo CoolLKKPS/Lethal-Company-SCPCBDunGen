@@ -19,6 +19,7 @@ using BepInEx.Bootstrap;
 using System.Net.NetworkInformation;
 using DunGen;
 using UnityEngine.ProBuilder;
+using System.Runtime.CompilerServices;
 
 namespace SCPCBDunGen
 {
@@ -86,7 +87,7 @@ namespace SCPCBDunGen
 
             // PVM compat check
             if (configPVMCompat.Value && Chainloader.PluginInfos.ContainsKey("Piggy.PiggyVarietyMod")) {
-                CompatPVM(SCPExtendedFlow); // If this isn't in a function and piggys mod isn't present it breaks things, probably JIT compiler trying to compile instructions that reference Piggys mod
+                CompatPVM(SCPExtendedFlow); // Must be in a separate function with no-inlining flags, see https://risk-of-thunder.github.io/R2Wiki/Mod-Creation/C%23-Programming/Mod-Compatibility%3A-Soft-Dependency/
             }
 
             PatchedContent.RegisterExtendedDungeonFlow(SCPExtendedFlow);
@@ -127,6 +128,8 @@ namespace SCPCBDunGen
             Logger.LogInfo($"{MyPluginInfo.PLUGIN_GUID} v{MyPluginInfo.PLUGIN_VERSION} has loaded!");
         }
 
+        // Compatibility methods
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
         private static void CompatPVM(ExtendedDungeonFlow SCPExtendedFlow) {
             // Add the tesla gate room to the list of potential LC rooms
             Logger.LogInfo("PiggysVarietyMod detected and compatibility layer enabled! Adding tesla gate room.");
