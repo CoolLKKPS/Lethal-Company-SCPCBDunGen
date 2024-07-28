@@ -5,7 +5,7 @@
         <AssemblyName>SCPCBDunGen</AssemblyName>
         <Product>SCPCBDunGen</Product>
         <!-- Change to whatever version you're currently on. -->
-        <Version>4.3.2</Version>
+        <Version>4.3.3</Version>
     </PropertyGroup>
 
     <!-- Project Properties -->
@@ -62,6 +62,9 @@
 
     <!-- Package References - Game Assembly HookGen -->
     <ItemGroup>
+        <Reference Include="DunGenPlus">
+          <HintPath>E:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\DunGenPlus.dll</HintPath>
+        </Reference>
         <Reference Include="LethalLevelLoader">
           <HintPath>E:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\LethalLevelLoader.dll</HintPath>
         </Reference>

@@ -75,12 +75,6 @@ namespace SCPCBDunGen.Patches
             // Array to reference arrays via type index
             IEnumerable<string>[] arSettingToItems = [arROUGH, arCOARSE, arONETOONE, arFINE, arVERYFINE];
 
-            // DEBUG print lowercase enemy names DEBUG
-            SCPCBDunGen.Logger.LogWarning("DEBUG PRINTING ALL ENEMIES");
-            foreach (ExtendedEnemyType type in PatchedContent.ExtendedEnemyTypes) {
-                SCPCBDunGen.Logger.LogWarning(type.EnemyType.enemyName.ToLowerInvariant());
-            }
-
             // Enemy conversion
             if (sItemLower[0] == '!') {
                 string sEnemyNameLower = sItemLower.TrimStart('!');

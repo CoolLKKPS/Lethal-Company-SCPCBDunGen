@@ -16,35 +16,9 @@ using UnityEngine.UIElements.Collections;
 
 namespace SCPCBDunGen
 {
-    public class SCP914InputStore : NetworkBehaviour
-    {
-        SCP914InputStore()
-        {
-            lContainedObjects = [];
-        }
-
-        // Store list of items entered
-        // Only listen to the host when it detects something entering/exiting the trigger
-        private void OnTriggerEnter(Collider other)
-        {
-            if (!NetworkManager.IsServer) return;
-            SCPCBDunGen.Logger.LogInfo($"New thing entered input trigger: {other.gameObject.name}.");
-            lContainedObjects.Add(other.gameObject);
-        }
-
-        private void OnTriggerExit(Collider other)
-        {
-            if (!NetworkManager.IsServer) return;
-            SCPCBDunGen.Logger.LogInfo($"Thing has left input trigger: {other.gameObject.name}.");
-            lContainedObjects.Remove(other.gameObject);
-        }
-
-        public List<GameObject> lContainedObjects;
-    }
-
     public class SCP914Converter : NetworkBehaviour
     {
-        public SCP914InputStore InputStore;
+        public BoxCollider InputStore;
         public Collider colliderOutput;
 
         public InteractTrigger SettingKnobTrigger;
@@ -274,30 +248,43 @@ namespace SCPCBDunGen
             List<int> lScrapValues = new List<int>();
             bool bChargeBatteries = (iCurrentState > 1);
 
-            SCPCBDunGen.Logger.LogInfo($"Contained item count: {InputStore.lContainedObjects.Count}");
-            foreach (GameObject gameObject in InputStore.lContainedObjects) {
+            BoxCollider InputCollider = InputStore;
+            if (InputCollider == null) {
+                SCPCBDunGen.Logger.LogError("Failed to get input store collider.");
+                yield break;
+            }
+
+            Collider[] inputObjects = Physics.OverlapBox(InputCollider.center + InputCollider.gameObject.transform.position, InputCollider.size / 2);
+
+            SCPCBDunGen.Logger.LogInfo($"Contained item count: {inputObjects.Length}");
+            foreach (Collider collider in inputObjects) {
+                GameObject gameObject = collider.gameObject;
+                SCPCBDunGen.Logger.LogInfo("Converting " + gameObject.name);
                 GrabbableObject grabbable = gameObject.GetComponent<GrabbableObject>();
                 // If grabbable item, convert it
                 if (grabbable != null) {
+                    SCPCBDunGen.Logger.LogInfo("Converting item.");
                     ConvertItem(lNetworkObjectReferences, lScrapValues, grabbable);
                     continue;
                 }
                 // Special case for players
                 PlayerControllerB playerController = gameObject.GetComponent<PlayerControllerB>();
                 if (playerController != null) {
+                    SCPCBDunGen.Logger.LogInfo("Converting player.");
                     ConvertPlayer(playerController);
                     continue;
                 }
                 // If enemy, convert it
                 EnemyAI enemy = gameObject.GetComponentInParent<EnemyAI>();
                 if (enemy != null) {
+                    SCPCBDunGen.Logger.LogInfo("Converting enemy.");
                     ConvertEnemy(lNetworkObjectReferences, lScrapValues, enemy);
                     continue;
                 }
+                SCPCBDunGen.Logger.LogWarning($"Unidentified object: {gameObject.name}. Not converting.");
             }
             SCPCBDunGen.Logger.LogInfo("Finished spawning scrap, syncing with clients");
             SpawnItemsClientRpc(lNetworkObjectReferences.ToArray(), lScrapValues.ToArray(), bChargeBatteries);
-            InputStore.lContainedObjects.Clear(); // Empty list for next runthrough
             yield return new WaitForSeconds(7); // 14 seconds (7 * 2) is the duration of the refining SFX (at the part where the bell dings is when we open the doors)
             RefineFinishClientRpc();
             bActive = false;

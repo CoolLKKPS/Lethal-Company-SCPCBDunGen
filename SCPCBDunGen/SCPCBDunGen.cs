@@ -20,6 +20,7 @@ using System.Net.NetworkInformation;
 using DunGen;
 using UnityEngine.ProBuilder;
 using System.Runtime.CompilerServices;
+using DunGenPlus;
 
 namespace SCPCBDunGen
 {
@@ -45,6 +46,7 @@ namespace SCPCBDunGen
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
     [BepInDependency("BMX.LobbyCompatibility", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency(LethalLevelLoader.Plugin.ModGUID, BepInDependency.DependencyFlags.HardDependency)]
+    //[BepInDependency("ImoutoSama.DungeonGenerationPlus", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency("Piggy.PiggyVarietyMod", BepInDependency.DependencyFlags.SoftDependency)]
     [LobbyCompatibility(CompatibilityLevel.Everyone, VersionStrictness.Patch)]
     public class SCPCBDunGen : BaseUnityPlugin
@@ -80,6 +82,13 @@ namespace SCPCBDunGen
                 Logger.LogError("Failed to load SCP:CB Extended Dungeon Flow.");
                 return;
             }
+            //DunGenExtender DunGenPlusExtender = SCPCBAssets.LoadAsset<DunGenExtender>("assets/Mods/SCP/data/SCPDunGenExtender.asset");
+            //if (DunGenPlusExtender == null)
+            //{
+            //    Logger.LogError("failed to load SCP:CB Dungeon Extender.");
+            //    return;
+            //}
+            //DunGenPlus.API.AddDunGenExtender(SCPExtendedFlow.DungeonFlow, DunGenPlusExtender);
 
             // Config setup
             ConfigEntry<bool> configDefault914 = Config.Bind("General", "Default914Recipes", true, new ConfigDescription("If false, any custom 914 Json files named \"default.json\" will be ignored (i.e. the default 914 config will not be loaded).\nSome custom 914 implementations may want to fully override the default settings, in which case this can be set to false."));

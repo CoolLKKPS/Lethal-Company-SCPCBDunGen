@@ -10,35 +10,10 @@ using UnityEngine.InputSystem.LowLevel;
 
 namespace SCPCBDunGen
 {
-    public class SCPCBElevNuclearTeleporter : NetworkBehaviour
-    {
-        SCPCBElevNuclearTeleporter()
-        {
-            lContainedObjects = [];
-        }
-
-        // Store list of things inside
-        private void OnTriggerEnter(Collider other)
-        {
-            if (!NetworkManager.IsServer) return;
-            SCPCBDunGen.Logger.LogInfo($"New thing entered elevator trigger: {other.gameObject.name}.");
-            lContainedObjects.Add(other.gameObject);
-        }
-
-        private void OnTriggerExit(Collider other)
-        {
-            if (!NetworkManager.IsServer) return;
-            SCPCBDunGen.Logger.LogInfo($"Thing has left elevator trigger: {other.gameObject.name}.");
-            lContainedObjects.Remove(other.gameObject);
-        }
-
-        public List<GameObject> lContainedObjects;
-    }
-
     public class SCPCBElevNuclearManager : NetworkBehaviour
     {
-        public SCPCBElevNuclearTeleporter TeleporterTop;
-        public SCPCBElevNuclearTeleporter TeleporterBot;
+        public BoxCollider TeleporterTop;
+        public BoxCollider TeleporterBot;
 
         public InteractTrigger ButtonTopIn;
         public InteractTrigger ButtonTopOut;
@@ -169,7 +144,7 @@ namespace SCPCBDunGen
 
             yield return new WaitForSeconds(10); // Initial wait before attempting teleport to allow doors to close and elevator moving SFX to finish
 
-            SCPCBElevNuclearTeleporter Teleporter = IsAtTop ? TeleporterTop : TeleporterBot;
+            BoxCollider Teleporter = IsAtTop ? TeleporterTop : TeleporterBot;
 
             SCPCBDunGen.Logger.LogInfo("** BEGINNING ELEVATOR TELEPORT SEQUENCE **");
 
@@ -178,8 +153,12 @@ namespace SCPCBDunGen
             List<GrabbableObject> TeleportedGrabbables = new List<GrabbableObject>();
             List<EnemyAI> TeleportedEnemies = new List<EnemyAI>();
 
-            foreach (GameObject gameObject in Teleporter.lContainedObjects)
+            Collider[] containedColliders = Physics.OverlapBox(Teleporter.transform.position + Teleporter.center, Teleporter.size / 2);
+
+            foreach (Collider collider in containedColliders)
             {
+                GameObject gameObject = collider.gameObject;
+
                 GrabbableObject grabbable = gameObject.GetComponent<GrabbableObject>();
                 // If grabbable item, move it
                 if (grabbable != null)
