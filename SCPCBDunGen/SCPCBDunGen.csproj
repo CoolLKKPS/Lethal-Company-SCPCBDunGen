@@ -49,9 +49,9 @@
     <ItemGroup>
         <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
         <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.2" PrivateAssets="all" />
-        <PackageReference Include="BepInEx.Core" Version="5.*" PrivateAssets="all" />
+        <PackageReference Include="BepInEx.Core" Version="5.4.21" PrivateAssets="all" />
         <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
-        <PackageReference Include="LethalCompany.GameLibs.Steam" Version="56.0.1-ngd.0" Publicize="true" PrivateAssets="all" />
+        <PackageReference Include="LethalCompany.GameLibs.Steam" Version="73.0.0-ngd.0" Publicize="true" PrivateAssets="all" />
         <PackageReference Include="UnityEngine.Modules" Version="2022.3.9" PrivateAssets="all" />
         <PackageReference Include="TeamBMX.LobbyCompatibility" Version="1.*" PrivateAssets="all" />
     </ItemGroup>
@@ -63,21 +63,21 @@
     <!-- Package References - Game Assembly HookGen -->
     <ItemGroup>
         <Reference Include="DunGenPlus">
-          <HintPath>E:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\DunGenPlus.dll</HintPath>
+          <HintPath>D:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\Alice-DungeonGenerationPlus\DunGenPlus.dll</HintPath>
         </Reference>
         <Reference Include="LethalLevelLoader">
-          <HintPath>E:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\LethalLevelLoader.dll</HintPath>
+          <HintPath>D:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\IAmBatby-LethalLevelLoader\LethalLevelLoader.dll</HintPath>
         </Reference>
         <Reference Include="MMHOOK_Assembly-CSharp">
-            <HintPath>$(MMHOOKDirectory)MMHOOK_Assembly-CSharp.dll</HintPath>
+            <HintPath>D:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\MMHOOK\MMHOOK_Assembly-CSharp.dll</HintPath>
         </Reference>
         <Reference Include="PiggyVarietyMod">
-          <HintPath>E:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\PVM\PiggyVarietyMod.dll</HintPath>
+          <HintPath>D:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\Piggy-Piggys_Variety_Mod\PiggyVarietyMod.dll</HintPath>
         </Reference>
     </ItemGroup>
 
     <!-- Netcode Patcher Post-Build Event -->
     <Target Name="NetcodePatch" AfterTargets="PostBuildEvent">
-        <Exec Command="dotnet netcode-patch &quot;$(TargetPath)&quot; @(ReferencePathWithRefAssemblies->'&quot;%(Identity)&quot;', ' ')" />
+        <Exec Command="netcode-patch -uv 2022.3.62 -nv 1.12.0 -tv 1.0.0 &quot;$(TargetPath)&quot; @(ReferencePathWithRefAssemblies->'&quot;%(Identity)&quot;', ' ')" />
     </Target>
 </Project>
