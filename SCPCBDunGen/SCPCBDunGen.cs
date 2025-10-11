@@ -162,7 +162,7 @@ namespace SCPCBDunGen
         private static void CompatBMXLobby()
         {
             Version pluginVersion = Version.Parse("4.3.4");
-            PluginHelper.RegisterPlugin("SCPCBDunGen", pluginVersion, 2, 3);
+            PluginHelper.RegisterPlugin("SCPCBDunGen", pluginVersion, CompatibilityLevel.Everyone, VersionStrictness.Minor);
         }
 
 
