@@ -1,7 +1,7 @@
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
-using LobbyCompatibility.Attributes;
+using LobbyCompatibility.Features;
 using LobbyCompatibility.Enums;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -44,11 +44,10 @@ namespace SCPCBDunGen
     }
 
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
-    [BepInDependency("BMX.LobbyCompatibility", BepInDependency.DependencyFlags.HardDependency)]
+    [BepInDependency("BMX.LobbyCompatibility", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(LethalLevelLoader.Plugin.ModGUID, BepInDependency.DependencyFlags.HardDependency)]
     //[BepInDependency("ImoutoSama.DungeonGenerationPlus", BepInDependency.DependencyFlags.HardDependency)]
     [BepInDependency("Piggy.PiggyVarietyMod", BepInDependency.DependencyFlags.SoftDependency)]
-    [LobbyCompatibility(CompatibilityLevel.Everyone, VersionStrictness.Patch)]
     public class SCPCBDunGen : BaseUnityPlugin
     {
         public static SCPCBDunGen Instance { get; private set; } = null!;
@@ -95,8 +94,13 @@ namespace SCPCBDunGen
             ConfigEntry<bool> configPVMCompat = Config.Bind("Mod Compatibility", "PiggysVarietyMod", true, new ConfigDescription("If Piggys Variety Mod is present and this setting is enabled, tesla gates can spawn in the SCP Foundation.\nWARNING: Ensure this value matches across all clients or desync will occur."));
 
             // PVM compat check
-            if (configPVMCompat.Value && Chainloader.PluginInfos.ContainsKey("Piggy.PiggyVarietyMod")) {
+            if (configPVMCompat.Value && Chainloader.PluginInfos.ContainsKey("Piggy.PiggyVarietyMod"))
+            {
                 CompatPVM(SCPExtendedFlow); // Must be in a separate function with no-inlining flags, see https://risk-of-thunder.github.io/R2Wiki/Mod-Creation/C%23-Programming/Mod-Compatibility%3A-Soft-Dependency/
+            }
+            if (Chainloader.PluginInfos.ContainsKey("BMX.LobbyCompatibility"))
+            {
+                SCPCBDunGen.CompatBMXLobby();
             }
 
             PatchedContent.RegisterExtendedDungeonFlow(SCPExtendedFlow);
@@ -121,10 +125,12 @@ namespace SCPCBDunGen
                             SCP914Conversions[Conversion.ItemName].OneToOneResults.AddRange(Conversion.OneToOneResults);
                             SCP914Conversions[Conversion.ItemName].FineResults.AddRange(Conversion.FineResults);
                             SCP914Conversions[Conversion.ItemName].VeryFineResults.AddRange(Conversion.VeryFineResults);
-                        } else SCP914Conversions.Add(Conversion);
+                        }
+                        else SCP914Conversions.Add(Conversion);
                     }
                     Logger.LogInfo($"Registed SCP 914 json file successfully: {sJsonFile}");
-                } catch (JsonException exception)
+                }
+                catch (JsonException exception)
                 {
                     Logger.LogError($"Failed to deserialize file: {sJsonFile}. Exception: {exception.Message}");
                 }
@@ -139,7 +145,8 @@ namespace SCPCBDunGen
 
         // Compatibility methods
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
-        private static void CompatPVM(ExtendedDungeonFlow SCPExtendedFlow) {
+        private static void CompatPVM(ExtendedDungeonFlow SCPExtendedFlow)
+        {
             // Add the tesla gate room to the list of potential LC rooms
             Logger.LogInfo("PiggysVarietyMod detected and compatibility layer enabled! Adding tesla gate room.");
 
@@ -150,6 +157,14 @@ namespace SCPCBDunGen
 
             SCPExtendedFlow.DungeonFlow.Lines.First().DungeonArchetypes.First().TileSets.First().AddTile(tile, 1, 1);
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+        private static void CompatBMXLobby()
+        {
+            Version pluginVersion = Version.Parse("4.3.4");
+            PluginHelper.RegisterPlugin("SCPCBDunGen", pluginVersion, 2, 3);
+        }
+
 
         // Thanks to Lordfirespeed for this json file path getter function
         IEnumerable<string> DiscoverConfiguredRecipeFiles()
