@@ -63,16 +63,16 @@
     <!-- Package References - Game Assembly HookGen -->
     <ItemGroup>
         <Reference Include="DunGenPlus">
-          <HintPath>D:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\Alice-DungeonGenerationPlus\DunGenPlus.dll</HintPath>
+          <HintPath>D:\Runtime dependencies (local)\BepInEx\plugins\Alice-DungeonGenerationPlus\DunGenPlus.dll</HintPath>
         </Reference>
         <Reference Include="LethalLevelLoader">
-          <HintPath>D:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\IAmBatby-LethalLevelLoader\LethalLevelLoader.dll</HintPath>
+          <HintPath>D:\Runtime dependencies (local)\BepInEx\plugins\pacoito-LethalLevelLoaderUpdated\LethalLevelLoader.dll</HintPath>
         </Reference>
         <Reference Include="MMHOOK_Assembly-CSharp">
-            <HintPath>D:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\MMHOOK\MMHOOK_Assembly-CSharp.dll</HintPath>
+            <HintPath>D:\Runtime dependencies (local)\BepInEx\plugins\MMHOOK\MMHOOK_Assembly-CSharp.dll</HintPath>
         </Reference>
         <Reference Include="PiggyVarietyMod">
-          <HintPath>D:\SteamLibrary\steamapps\common\Lethal Company\BepInEx\plugins\Piggy-Piggys_Variety_Mod\PiggyVarietyMod.dll</HintPath>
+          <HintPath>D:\Runtime dependencies (local)\BepInEx\plugins\Piggy-Piggys_Variety_Mod\PiggyVarietyMod.dll</HintPath>
         </Reference>
     </ItemGroup>
 
